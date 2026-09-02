@@ -11,15 +11,7 @@
     <StripSymbols>true</StripSymbols>
     <OptimizationPreference>Speed</OptimizationPreference>
     <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
-    <ApplicationIcon>monster.ico</ApplicationIcon>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Raylib-cs" Version="8.0.0" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="assets\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
+  <ItemGroup><PackageReference Include="Raylib-cs" Version="8.0.0" /></ItemGroup>
+  <ItemGroup><Content Include="assets\**\*"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></Content></ItemGroup>
 </Project>
