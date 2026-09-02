@@ -1,0 +1,9 @@
+bin/
+obj/
+dist/
+dist-normal/
+*.user
+*.suo
+.vs/
+.idea/
+MonsterEnergyFlappyBird-win-x64.zip
