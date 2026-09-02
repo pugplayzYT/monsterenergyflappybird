@@ -1,0 +1,55 @@
+name: Build Monster Energy Flappy Bird
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-native-aot:
+    name: Windows x64 Native AOT
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore MonsterEnergyFlappyBird.csproj -r win-x64
+
+      - name: Publish Native AOT
+        run: dotnet publish MonsterEnergyFlappyBird.csproj -c Release -r win-x64 --self-contained true -o dist
+
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'dist/MonsterEnergyFlappyBird.exe')) { throw 'Native AOT EXE was not produced.' }
+          Get-ChildItem dist -Recurse | Format-Table FullName,Length
+
+      - name: Package clean Windows build
+        shell: pwsh
+        run: Compress-Archive -Path 'dist/*' -DestinationPath 'MonsterEnergyFlappyBird-win-x64.zip' -Force
+
+      - name: Upload runnable build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MonsterEnergyFlappyBird-win-x64
+          path: dist/
+          if-no-files-found: error
+
+      - name: Create GitHub Release for version tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" 'MonsterEnergyFlappyBird-win-x64.zip' --title "Monster Energy Flappy Bird ${{ github.ref_name }}" --generate-notes
