@@ -24,16 +24,40 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Convert SVG assets to PNG
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $inkscape = (Get-Command inkscape -ErrorAction SilentlyContinue).Source
+          if (-not $inkscape) {
+            choco install inkscape -y --no-progress
+            $inkscape = (Get-Command inkscape -ErrorAction SilentlyContinue).Source
+            if (-not $inkscape) {
+              $candidate = 'C:\Program Files\Inkscape\bin\inkscape.exe'
+              if (Test-Path $candidate) { $inkscape = $candidate }
+            }
+          }
+          if (-not $inkscape) { throw 'Inkscape could not be located after installation.' }
+          Get-ChildItem assets -Filter *.svg | ForEach-Object {
+            $png = [System.IO.Path]::ChangeExtension($_.FullName, '.png')
+            & $inkscape $_.FullName --export-type=png --export-filename=$png
+            if (!(Test-Path $png)) { throw "PNG conversion failed for $($_.Name)" }
+          }
+          Get-ChildItem assets | Format-Table Name,Length
+
       - name: Restore
         run: dotnet restore MonsterEnergyFlappyBird.csproj -r win-x64
 
       - name: Publish Native AOT
         run: dotnet publish MonsterEnergyFlappyBird.csproj -c Release -r win-x64 --self-contained true -o dist
 
-      - name: Verify executable
+      - name: Verify executable and PNG assets
         shell: pwsh
         run: |
           if (!(Test-Path 'dist/MonsterEnergyFlappyBird.exe')) { throw 'Native AOT EXE was not produced.' }
+          foreach ($asset in 'background','can','pipe','gameover') {
+            if (!(Test-Path "dist/assets/$asset.png")) { throw "Missing required PNG asset: $asset.png" }
+          }
           Get-ChildItem dist -Recurse | Format-Table FullName,Length
 
       - name: Package clean Windows build
