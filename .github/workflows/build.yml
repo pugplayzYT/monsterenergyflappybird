@@ -28,18 +28,31 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $inkscape = 'C:\Program Files\Inkscape\bin\inkscape.exe'
+          $inkscape = 'C:\Program Files\Inkscape\bin\inkscape.com'
           if (!(Test-Path $inkscape)) {
             choco install inkscape -y --no-progress
           }
-          if (!(Test-Path $inkscape)) { throw 'Inkscape executable was not found after installation.' }
+          if (!(Test-Path $inkscape)) {
+            Write-Host 'Inkscape bin directory:'
+            Get-ChildItem 'C:\Program Files\Inkscape\bin' -ErrorAction SilentlyContinue | Select-Object Name,Length
+            throw 'Inkscape console executable was not found after installation.'
+          }
+
+          & $inkscape --version
+          if ($LASTEXITCODE -ne 0) { throw "Inkscape CLI test failed with exit code $LASTEXITCODE" }
 
           foreach ($svg in Get-ChildItem assets -Filter *.svg) {
             $png = [System.IO.Path]::ChangeExtension($svg.FullName, '.png')
-            Write-Host "Converting $($svg.Name) -> $([System.IO.Path]::GetFileName($png))"
-            & $inkscape '--export-type=png' "--export-filename=$png" $svg.FullName
-            if ($LASTEXITCODE -ne 0) { throw "Inkscape exited with code $LASTEXITCODE for $($svg.Name)" }
-            if (!(Test-Path -LiteralPath $png)) { throw "PNG conversion failed for $($svg.Name)" }
+            Write-Host "Converting $($svg.FullName) -> $png"
+            & $inkscape $svg.FullName "--export-filename=$png" --export-type=png
+            $code = $LASTEXITCODE
+            if ($code -ne 0) { throw "Inkscape exited with code $code for $($svg.Name)" }
+            if (!(Test-Path -LiteralPath $png)) {
+              Write-Host 'Asset directory after failed conversion:'
+              Get-ChildItem assets -Force | Select-Object Name,Length,FullName
+              throw "PNG conversion produced no file for $($svg.Name)"
+            }
+            if ((Get-Item -LiteralPath $png).Length -le 0) { throw "PNG output is empty for $($svg.Name)" }
           }
           Get-ChildItem assets | Format-Table Name,Length
 
@@ -54,7 +67,9 @@ jobs:
         run: |
           if (!(Test-Path 'dist/MonsterEnergyFlappyBird.exe')) { throw 'Native AOT EXE was not produced.' }
           foreach ($asset in 'background','can','pipe','gameover') {
-            if (!(Test-Path "dist/assets/$asset.png")) { throw "Missing required PNG asset: $asset.png" }
+            $path = "dist/assets/$asset.png"
+            if (!(Test-Path $path)) { throw "Missing required PNG asset: $asset.png" }
+            if ((Get-Item $path).Length -le 0) { throw "PNG asset is empty: $asset.png" }
           }
           Get-ChildItem dist -Recurse | Format-Table FullName,Length
 
