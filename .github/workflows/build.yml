@@ -28,20 +28,18 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $inkscape = (Get-Command inkscape -ErrorAction SilentlyContinue).Source
-          if (-not $inkscape) {
+          $inkscape = 'C:\Program Files\Inkscape\bin\inkscape.exe'
+          if (!(Test-Path $inkscape)) {
             choco install inkscape -y --no-progress
-            $inkscape = (Get-Command inkscape -ErrorAction SilentlyContinue).Source
-            if (-not $inkscape) {
-              $candidate = 'C:\Program Files\Inkscape\bin\inkscape.exe'
-              if (Test-Path $candidate) { $inkscape = $candidate }
-            }
           }
-          if (-not $inkscape) { throw 'Inkscape could not be located after installation.' }
-          Get-ChildItem assets -Filter *.svg | ForEach-Object {
-            $png = [System.IO.Path]::ChangeExtension($_.FullName, '.png')
-            & $inkscape $_.FullName --export-type=png --export-filename=$png
-            if (!(Test-Path $png)) { throw "PNG conversion failed for $($_.Name)" }
+          if (!(Test-Path $inkscape)) { throw 'Inkscape executable was not found after installation.' }
+
+          foreach ($svg in Get-ChildItem assets -Filter *.svg) {
+            $png = [System.IO.Path]::ChangeExtension($svg.FullName, '.png')
+            Write-Host "Converting $($svg.Name) -> $([System.IO.Path]::GetFileName($png))"
+            & $inkscape '--export-type=png' "--export-filename=$png" $svg.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Inkscape exited with code $LASTEXITCODE for $($svg.Name)" }
+            if (!(Test-Path -LiteralPath $png)) { throw "PNG conversion failed for $($svg.Name)" }
           }
           Get-ChildItem assets | Format-Table Name,Length
 
